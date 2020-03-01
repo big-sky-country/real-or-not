@@ -1,0 +1,60 @@
+---
+title: "Topic Model Explore"
+author: "Wyatt Madden"
+date: "3/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+library(tidyverse)
+library(tidytext)
+library(topicmodels)
+library(tm) #text mining package - for creating document-term matrix 
+```
+
+
+
+```{r}
+train <- read_csv(paste0(dirname(dirname(getwd())), "/data/train.csv"))
+test <- read_csv(paste0(dirname(dirname(getwd())), "/data/test.csv"))
+```
+
+```{r}
+myStopwords <- c("http:")
+removeSpecial <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+                            
+train_matrix <- train$text %>%
+  tolower %>% 
+  gsub("[^[:alnum:][:blank:]]", "", .) %>% #removes non-alphanumeric
+  gsub("\\w*[0-9]+\\w*\\s*", "", .) %>% #removes words with digits
+  removeWords(stopwords("english")) %>% 
+  removeWords(stopwords("SMART")) %>% 
+  removeWords(myStopwords) %>% 
+  VectorSource %>% 
+  VCorpus %>% 
+  DocumentTermMatrix 
+  
+
+```
+
+```{r, eval = F}
+train_lda <- LDA(train_matrix, k = 3, control = list(seed = 1))
+topics_2 <- train_lda %>% 
+  tidy(matrix = "beta")
+
+top_terms_2 <- topics_2 %>% 
+  group_by(topic) %>% 
+  top_n(10, beta) %>% 
+  ungroup %>% 
+  arrange(topic, -beta)
+
+top_terms_2 %>% 
+  mutate(term = reorder_within(term, beta, topic)) %>% 
+  ggplot(aes(term, beta, fill = factor(topic))) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~ topic, scales = "free") + 
+  coord_flip() + 
+  scale_x_reordered()
+```
+
